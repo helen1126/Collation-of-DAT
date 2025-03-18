@@ -87,7 +87,6 @@ def auto_resume_helper(output_dir):
         resume_file = None
     return resume_file
 
-
 def reduce_tensor(tensor):
     rt = tensor.clone()
     dist.all_reduce(rt, op=dist.ReduceOp.SUM)

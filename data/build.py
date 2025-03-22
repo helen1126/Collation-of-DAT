@@ -19,6 +19,15 @@ from timm.data import create_transform
 from .samplers import SubsetRandomSampler
 from torch.utils.data import DataLoader
 def build_loader(config):
+    """
+    构建训练和验证数据集的数据加载器，并根据配置设置混合增强（mixup/cutmix）函数。
+
+    参数:
+    config (CfgNode): 包含各种配置信息的对象，如数据集路径、批次大小、增强参数等。
+
+    返回:
+    tuple: 包含训练数据集、验证数据集、训练数据加载器、验证数据加载器和混合增强函数的元组。
+    """
 
     config.defrost()
     dataset_train, config.MODEL.NUM_CLASSES = build_dataset(is_train=True, config=config)
@@ -64,6 +73,16 @@ def build_loader(config):
 
 
 def build_dataset(is_train, config):
+    """
+    根据训练或验证模式和配置信息构建数据集。
+
+    参数:
+    is_train (bool): 指示是否为训练模式。
+    config (CfgNode): 包含各种配置信息的对象，如数据集路径、数据集类型等。
+
+    返回:
+    tuple: 包含数据集对象和类别数量的元组。
+    """
     transform = build_transform(is_train, config)
     if config.DATA.DATASET == 'imagenet':
         prefix = 'train' if is_train else 'val'
@@ -77,6 +96,17 @@ def build_dataset(is_train, config):
 
 
 def build_transform(is_train, config):
+    """
+    根据训练或验证模式和配置信息构建数据转换。
+
+    参数:
+    is_train (bool): 指示是否为训练模式。
+    config (CfgNode): 包含各种配置信息的对象，如图像大小、增强参数等。
+
+    返回:
+    transforms.Compose: 包含一系列数据转换操作的组合。
+    """
+
     resize_im = config.DATA.IMG_SIZE > 32
     if is_train:
 

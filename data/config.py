@@ -154,6 +154,16 @@ _C.LOCAL_RANK = 0
 
 
 def _update_config_from_file(config, cfg_file):
+    """
+    从指定的YAML配置文件中更新配置对象。
+
+    参数:
+    config (CfgNode): 要更新的配置对象。
+    cfg_file (str): YAML配置文件的路径。
+
+    返回:
+    None: 直接修改传入的config对象。
+    """
     config.defrost()
     with open(cfg_file, 'r') as f:
         yaml_cfg = yaml.load(f, Loader=yaml.FullLoader)
@@ -169,6 +179,16 @@ def _update_config_from_file(config, cfg_file):
 
 
 def update_config(config, args):
+    """
+    根据命令行参数和配置文件更新配置对象。
+
+    参数:
+    config (CfgNode): 要更新的配置对象。
+    args (argparse.Namespace): 命令行参数对象。
+
+    返回:
+    None: 直接修改传入的config对象。
+    """
     _update_config_from_file(config, args.cfg)
 
     config.defrost()
@@ -202,6 +222,15 @@ def update_config(config, args):
 
 
 def get_config(args):
+    """
+    根据命令行参数获取配置对象。
+
+    参数:
+    args (argparse.Namespace): 命令行参数对象。
+
+    返回:
+    CfgNode: 包含所有配置信息的配置对象。
+    """
     """Get a yacs CfgNode object with default values."""
     # Return a clone so that the defaults will not be altered
     # This is for the "local variable" use pattern

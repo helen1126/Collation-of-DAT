@@ -19,7 +19,16 @@ from timm.models.layers import to_2tuple, trunc_normal_
 class LocalAttention(nn.Module):
 
     def __init__(self, dim, heads, window_size, attn_drop, proj_drop):
-        
+        """
+        初始化 LocalAttention 模块。
+
+        参数:
+        dim (int): 输入特征的维度。
+        heads (int): 注意力头的数量。
+        window_size (int or tuple): 注意力窗口的大小。
+        attn_drop (float): 注意力矩阵的丢弃率。
+        proj_drop (float): 投影层的丢弃率。
+        """
         super().__init__()
 
         window_size = to_2tuple(window_size)
@@ -53,7 +62,18 @@ class LocalAttention(nn.Module):
         self.register_buffer("relative_position_index", relative_position_index)
 
     def forward(self, x, mask=None):
+        """
+        前向传播函数。
 
+        参数:
+        x (torch.Tensor): 输入特征，形状为 (B, C, H, W)。
+        mask (torch.Tensor, 可选): 注意力掩码，形状为 (nW, ww, ww)。
+
+        返回:
+        torch.Tensor: 输出特征，形状为 (B, C, H, W)。
+        None: 占位符，无实际意义。
+        None: 占位符，无实际意义。
+        """
         B, C, H, W = x.size()
         r1, r2 = H // self.window_size[0], W // self.window_size[1]
 
@@ -93,7 +113,18 @@ class LocalAttention(nn.Module):
 class ShiftWindowAttention(LocalAttention):
 
     def __init__(self, dim, heads, window_size, attn_drop, proj_drop, shift_size, fmap_size):
+        """
+        初始化 ShiftWindowAttention 模块。
 
+        参数:
+        dim (int): 输入特征的维度。
+        heads (int): 注意力头的数量。
+        window_size (int or tuple): 注意力窗口的大小。
+        attn_drop (float): 注意力矩阵的丢弃率。
+        proj_drop (float): 投影层的丢弃率。
+        shift_size (int): 窗口移动的大小。
+        fmap_size (int or tuple): 特征图的大小。
+        """
         super().__init__(dim, heads, window_size, attn_drop, proj_drop)
 
         self.fmap_size = to_2tuple(fmap_size)
@@ -119,7 +150,17 @@ class ShiftWindowAttention(LocalAttention):
         self.register_buffer("attn_mask", attn_mask)
       
     def forward(self, x):
+        """
+        前向传播函数。
 
+        参数:
+        x (torch.Tensor): 输入特征，形状为 (B, C, H, W)。
+
+        返回:
+        torch.Tensor: 输出特征，形状为 (B, C, H, W)。
+        None: 占位符，无实际意义。
+        None: 占位符，无实际意义。
+        """
         shifted_x = torch.roll(x, shifts=(-self.shift_size, -self.shift_size), dims=(2, 3))
         sw_x, _, _ = super().forward(shifted_x, self.attn_mask)
         x = torch.roll(sw_x, shifts=(self.shift_size, self.shift_size), dims=(2, 3))
@@ -135,7 +176,26 @@ class DAttentionBaseline(nn.Module):
         offset_range_factor, use_pe, dwc_pe,
         no_off, fixed_pe, ksize, log_cpb
     ):
+        """
+        初始化 DAttentionBaseline 模块。
 
+        参数:
+        q_size (tuple): 查询特征图的大小 (H, W)。
+        kv_size (tuple): 键值特征图的大小 (H, W)。
+        n_heads (int): 注意力头的数量。
+        n_head_channels (int): 每个注意力头的通道数。
+        n_groups (int): 分组的数量。
+        attn_drop (float): 注意力矩阵的丢弃率。
+        proj_drop (float): 投影层的丢弃率。
+        stride (int): 步长。
+        offset_range_factor (int): 偏移范围因子。
+        use_pe (bool): 是否使用位置编码。
+        dwc_pe (bool): 是否使用深度可分离卷积位置编码。
+        no_off (bool): 是否不使用偏移。
+        fixed_pe (bool): 是否使用固定位置编码。
+        ksize (int): 卷积核的大小。
+        log_cpb (bool): 是否使用对数相对位置编码。
+        """
         super().__init__()
         self.dwc_pe = dwc_pe
         self.n_head_channels = n_head_channels
@@ -217,7 +277,19 @@ class DAttentionBaseline(nn.Module):
 
     @torch.no_grad()
     def _get_ref_points(self, H_key, W_key, B, dtype, device):
+        """
+        获取参考点的坐标。
 
+        参数:
+        H_key (int): 键值特征图的高度。
+        W_key (int): 键值特征图的宽度。
+        B (int): 批次大小。
+        dtype (torch.dtype): 数据类型。
+        device (torch.device): 设备类型。
+
+        返回:
+        torch.Tensor: 参考点的坐标，形状为 (B * g, H, W, 2)。
+        """
         ref_y, ref_x = torch.meshgrid(
             torch.linspace(0.5, H_key - 0.5, H_key, dtype=dtype, device=device),
             torch.linspace(0.5, W_key - 0.5, W_key, dtype=dtype, device=device),
@@ -232,7 +304,19 @@ class DAttentionBaseline(nn.Module):
     
     @torch.no_grad()
     def _get_q_grid(self, H, W, B, dtype, device):
+        """
+        获取查询特征图的网格坐标。
 
+        参数:
+        H (int): 查询特征图的高度。
+        W (int): 查询特征图的宽度。
+        B (int): 批次大小。
+        dtype (torch.dtype): 数据类型。
+        device (torch.device): 设备类型。
+
+        返回:
+        torch.Tensor: 查询特征图的网格坐标，形状为 (B * g, H, W, 2)。
+        """
         ref_y, ref_x = torch.meshgrid(
             torch.arange(0, H, dtype=dtype, device=device),
             torch.arange(0, W, dtype=dtype, device=device),
@@ -246,7 +330,18 @@ class DAttentionBaseline(nn.Module):
         return ref
 
     def forward(self, x):
+        """
+        DAttentionBaseline 模块的前向传播函数。
 
+        参数:
+        x (torch.Tensor): 输入的特征图，形状为 (B, C, H, W)，其中 B 是批次大小，C 是通道数，H 是高度，W 是宽度。
+
+        返回:
+        tuple: 包含以下三个元素的元组
+            - y (torch.Tensor): 输出的特征图，形状为 (B, C, H, W)。
+            - pos (torch.Tensor): 偏移后的参考点位置，形状为 (B, n_groups, Hk, Wk, 2)，其中 Hk 和 Wk 是偏移后的特征图的高度和宽度。
+            - reference (torch.Tensor): 原始的参考点位置，形状为 (B, n_groups, Hk, Wk, 2)。
+        """
         B, C, H, W = x.size()
         dtype, device = x.dtype, x.device
 
@@ -334,7 +429,16 @@ class DAttentionBaseline(nn.Module):
 class PyramidAttention(nn.Module):
 
     def __init__(self, dim, num_heads=8, attn_drop=0., proj_drop=0., sr_ratio=1):
+        """
+        初始化 PyramidAttention 模块。
 
+        参数:
+        dim (int): 输入特征的通道数。
+        num_heads (int, 可选): 注意力头的数量。默认为 8。
+        attn_drop (float, 可选): 注意力分数的丢弃率。默认为 0。
+        proj_drop (float, 可选): 投影层的丢弃率。默认为 0。
+        sr_ratio (int, 可选): 下采样率。默认为 1。
+        """
         super().__init__()
 
         assert dim % num_heads == 0, f"dim {dim} should be divided by num_heads {num_heads}."
@@ -359,7 +463,18 @@ class PyramidAttention(nn.Module):
 
 
     def forward(self, x):
+        """
+        PyramidAttention 模块的前向传播函数。
 
+        参数:
+        x (torch.Tensor): 输入的特征图，形状为 (B, C, H, W)，其中 B 是批次大小，C 是通道数，H 是高度，W 是宽度。
+
+        返回:
+        tuple: 包含以下三个元素的元组
+            - x (torch.Tensor): 输出的特征图，形状为 (B, C, H, W)。
+            - None: 占位符，无实际意义。
+            - None: 占位符，无实际意义。
+        """
         B, C, H, W = x.size()
         Nq = H * W
         q = self.q(x)
@@ -390,7 +505,14 @@ class PyramidAttention(nn.Module):
 class TransformerMLP(nn.Module):
 
     def __init__(self, channels, expansion, drop):
-        
+        """
+        初始化 TransformerMLP 模块。
+
+        参数:
+        channels (int): 输入特征的通道数。
+        expansion (int): 通道扩展因子。
+        drop (float): Dropout 概率。
+        """
         super().__init__()
         
         self.dim1 = channels
@@ -403,7 +525,15 @@ class TransformerMLP(nn.Module):
         self.chunk.add_module('drop2', nn.Dropout(drop, inplace=True))
     
     def forward(self, x):
+        """
+        TransformerMLP 模块的前向传播函数。
 
+        参数:
+        x (torch.Tensor): 输入的特征图，形状为 (B, C, H, W)。
+
+        返回:
+        torch.Tensor: 输出的特征图，形状为 (B, C, H, W)。
+        """
         _, _, H, W = x.size()
         x = einops.rearrange(x, 'b c h w -> b (h w) c')
         x = self.chunk(x)
@@ -413,12 +543,25 @@ class TransformerMLP(nn.Module):
 class LayerNormProxy(nn.Module):
     
     def __init__(self, dim):
-        
+        """
+        初始化 LayerNormProxy 模块。
+
+        参数:
+        dim (int): 输入特征的通道数。
+        """
         super().__init__()
         self.norm = nn.LayerNorm(dim)
 
     def forward(self, x):
+        """
+        LayerNormProxy 模块的前向传播函数。
 
+        参数:
+        x (torch.Tensor): 输入的特征图，形状为 (B, C, H, W)。
+
+        返回:
+        torch.Tensor: 输出的特征图，形状为 (B, C, H, W)。
+        """
         x = einops.rearrange(x, 'b c h w -> b h w c')
         x = self.norm(x)
         return einops.rearrange(x, 'b h w c -> b c h w')
@@ -427,7 +570,14 @@ class LayerNormProxy(nn.Module):
 class TransformerMLPWithConv(nn.Module):
 
     def __init__(self, channels, expansion, drop):
-        
+        """
+        初始化 TransformerMLPWithConv 模块。
+
+        参数:
+        channels (int): 输入特征的通道数。
+        expansion (int): 通道扩展因子。
+        drop (float): Dropout 概率。
+        """
         super().__init__()
         
         self.dim1 = channels
@@ -448,7 +598,15 @@ class TransformerMLPWithConv(nn.Module):
         self.dwc = nn.Conv2d(self.dim2, self.dim2, 3, 1, 1, groups=self.dim2)
     
     def forward(self, x):
-        
+        """
+        TransformerMLPWithConv 模块的前向传播函数。
+
+        参数:
+        x (torch.Tensor): 输入的特征图，形状为 (B, C, H, W)。
+
+        返回:
+        torch.Tensor: 输出的特征图，形状为 (B, C, H, W)。
+        """
         x = self.linear1(x)
         x = self.drop1(x)
         x = x + self.dwc(x)

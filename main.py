@@ -37,6 +37,16 @@ warnings.filterwarnings('ignore')
 
 
 def parse_option():
+    """
+    解析命令行参数并加载配置文件。
+
+    该函数创建一个命令行参数解析器，定义了一系列可选参数，
+    包括配置文件路径、批量大小、数据集路径等。然后解析命令行参数，
+    并调用 `get_config` 函数根据解析的参数加载配置。
+
+    返回:
+    tuple: 包含解析后的命令行参数和配置对象的元组。
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument('--cfg', type=str, required=True, metavar="FILE", help='path to config file', )
     parser.add_argument(
@@ -65,7 +75,15 @@ def parse_option():
 
 
 def main():
-    
+    """
+    主函数，负责初始化训练环境、构建模型、数据加载器、优化器和学习率调度器，
+    并根据配置进行模型训练、验证或吞吐量测试。
+
+    该函数首先解析命令行参数和配置文件，初始化分布式训练环境，设置随机种子，
+    然后根据配置调整学习率。接着创建日志记录器，保存配置文件，构建数据加载器和模型，
+    初始化优化器和学习率调度器，选择合适的损失函数。根据配置加载预训练模型或恢复训练，
+    最后根据配置进行训练、验证或吞吐量测试。
+    """
     args, config = parse_option()
     local_rank = int(os.environ["LOCAL_RANK"])
     rank = int(os.environ["RANK"])
@@ -186,6 +204,25 @@ def main():
 
 
 def train_one_epoch(config, model, criterion, data_loader, optimizer, epoch, mixup_fn, lr_scheduler, logger):
+    """
+    训练一个 epoch 的函数。
+
+    该函数将模型设置为训练模式，遍历训练数据加载器，对每个批次的数据进行前向传播、
+    计算损失、反向传播和参数更新。根据配置选择是否使用自动混合精度训练，
+    并根据配置进行梯度裁剪。同时记录训练过程中的损失、梯度范数和训练时间，
+    并在一定间隔打印训练信息。
+
+    参数:
+    config (object): 配置对象，包含训练相关的配置信息。
+    model (torch.nn.Module): 待训练的模型。
+    criterion (torch.nn.Module): 损失函数。
+    data_loader (torch.utils.data.DataLoader): 训练数据加载器。
+    optimizer (torch.optim.Optimizer): 优化器。
+    epoch (int): 当前训练的 epoch 数。
+    mixup_fn (callable or None): 数据增强函数，如果为 None 则不使用。
+    lr_scheduler (object): 学习率调度器。
+    logger (object): 日志记录器。
+    """
     model.train()
     optimizer.zero_grad()
 
@@ -257,6 +294,22 @@ def train_one_epoch(config, model, criterion, data_loader, optimizer, epoch, mix
 
 @torch.no_grad()
 def validate(config, data_loader, model, logger):
+    """
+    在验证集上验证模型的函数。
+
+    该函数将模型设置为评估模式，遍历验证数据加载器，对每个批次的数据进行前向传播，
+    计算损失和准确率。使用 `reduce_tensor` 函数对损失和准确率进行规约操作，
+    并记录验证过程中的损失、准确率和验证时间，最后打印验证结果。
+
+    参数:
+    config (object): 配置对象，包含验证相关的配置信息。
+    data_loader (torch.utils.data.DataLoader): 验证数据加载器。
+    model (torch.nn.Module): 待验证的模型。
+    logger (object): 日志记录器。
+
+    返回:
+    tuple: 包含验证集上的 top-1 准确率、top-5 准确率和平均损失的元组。
+    """
     criterion = nn.CrossEntropyLoss()
     model.eval()
 
@@ -303,6 +356,18 @@ def validate(config, data_loader, model, logger):
 
 @torch.no_grad()
 def throughput(data_loader, model, logger):
+    """
+    测试模型吞吐量的函数。
+
+    该函数将模型设置为评估模式，从数据加载器中获取一个批次的数据，
+    先进行 50 次前向传播以热身，然后进行 30 次前向传播并记录时间，
+    最后计算并打印模型的吞吐量。
+
+    参数:
+    data_loader (torch.utils.data.DataLoader): 数据加载器。
+    model (torch.nn.Module): 待测试的模型。
+    logger (object): 日志记录器。
+    """
     model.eval()
 
     for _, (images, _) in enumerate(data_loader):

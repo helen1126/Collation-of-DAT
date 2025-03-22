@@ -27,18 +27,37 @@ class LayerScale(nn.Module):
                  dim: int,
                  inplace: bool = False,
                  init_values: float = 1e-5):
+        """
+        初始化 LayerScale 模块。
+
+        参数:
+        dim (int): 输入特征的维度。
+        inplace (bool, 可选): 是否进行原地操作。默认为 False。
+        init_values (float, 可选): 初始化权重的值。默认为 1e-5。
+        """
         super().__init__()
         self.inplace = inplace
         self.weight = nn.Parameter(torch.ones(dim) * init_values)
 
     def forward(self, x):
+        """
+        前向传播函数，对输入特征进行缩放。
+
+        参数:
+        x (torch.Tensor): 输入的特征图。
+
+        返回:
+        torch.Tensor: 缩放后的特征图。
+        """
         if self.inplace:
             return x.mul_(self.weight.view(-1, 1, 1))
         else:
             return x * self.weight.view(-1, 1, 1)
 
 class TransformerStage(nn.Module):
-
+    """
+    变压器阶段模块，包含多个注意力层和 MLP 层。
+    """
     def __init__(self, fmap_size, window_size, ns_per_pt,
                  dim_in, dim_embed, depths, stage_spec, n_groups, 
                  use_pe, sr_ratio,
@@ -49,7 +68,42 @@ class TransformerStage(nn.Module):
                  use_dwc_mlp, ksize, nat_ksize,
                  k_qna, nq_qna, qna_activation, 
                  layer_scale_value, use_lpu, log_cpb):
+        """
+        初始化 TransformerStage 模块。
 
+        参数:
+        fmap_size (int or tuple): 特征图的大小。
+        window_size (int): 窗口大小。
+        ns_per_pt (int): 每个点的邻居数量。
+        dim_in (int): 输入特征的维度。
+        dim_embed (int): 嵌入特征的维度。
+        depths (int): 阶段的深度，即层数。
+        stage_spec (list): 阶段的配置列表，指定每层的注意力类型。
+        n_groups (int): 分组数量。
+        use_pe (bool): 是否使用位置编码。
+        sr_ratio (int): 下采样率。
+        heads (int): 注意力头的数量。
+        heads_q (int): 查询注意力头的数量。
+        stride (int): 步长。
+        offset_range_factor (int): 偏移范围因子。
+        dwc_pe (bool): 是否使用深度可分离卷积位置编码。
+        no_off (bool): 是否不使用偏移。
+        fixed_pe (bool): 是否使用固定位置编码。
+        attn_drop (float): 注意力层的丢弃率。
+        proj_drop (float): 投影层的丢弃率。
+        expansion (int): MLP 层的扩展因子。
+        drop (float): 丢弃率。
+        drop_path_rate (list): 随机深度丢弃率列表。
+        use_dwc_mlp (bool): 是否使用深度可分离卷积 MLP。
+        ksize (int): 卷积核大小。
+        nat_ksize (int): 邻域注意力的卷积核大小。
+        k_qna (int): FusedKQnA 模块的参数。
+        nq_qna (int): FusedKQnA 模块的参数。
+        qna_activation (str): FusedKQnA 模块的激活函数。
+        layer_scale_value (float): 层缩放的值。
+        use_lpu (bool): 是否使用局部感知单元。
+        log_cpb (bool): 是否使用对数相对位置偏差。
+        """
         super().__init__()
         fmap_size = to_2tuple(fmap_size)
         self.depths = depths
@@ -131,7 +185,15 @@ class TransformerStage(nn.Module):
             self.drop_path.append(DropPath(drop_path_rate[i]) if drop_path_rate[i] > 0.0 else nn.Identity())
 
     def forward(self, x):
+        """
+        前向传播函数，处理输入特征并通过多个注意力层和 MLP 层。
 
+        参数:
+        x (torch.Tensor): 输入的特征图。
+
+        返回:
+        torch.Tensor: 输出的特征图。
+        """
         x = self.proj(x)
 
         for d in range(self.depths):
@@ -160,7 +222,9 @@ class TransformerStage(nn.Module):
 
 
 class DAT(nn.Module):
-
+    """
+    具有可变形注意力的视觉变压器模型。
+    """
     def __init__(self, img_size=224, patch_size=4, num_classes=1000, expansion=4,
                  dim_stem=96, dims=[96, 192, 384, 768], depths=[2, 2, 6, 2], 
                  heads=[3, 6, 12, 24], heads_q=[6, 12, 24, 48],
@@ -188,6 +252,45 @@ class DAT(nn.Module):
                  use_lpus=[False, False, False, False],
                  log_cpb=[False, False, False, False],
                  **kwargs):
+        """
+        初始化 DAT 模型。
+
+        参数:
+        img_size (int, 可选): 输入图像的大小。默认为 224。
+        patch_size (int, 可选): 图像块的大小。默认为 4。
+        num_classes (int, 可选): 分类的类别数量。默认为 1000。
+        expansion (int, 可选): MLP 层的扩展因子。默认为 4。
+        dim_stem (int, 可选): 茎层的维度。默认为 96。
+        dims (list, 可选): 各阶段的维度列表。默认为 [96, 192, 384, 768]。
+        depths (list, 可选): 各阶段的深度列表。默认为 [2, 2, 6, 2]。
+        heads (list, 可选): 各阶段的注意力头数量列表。默认为 [3, 6, 12, 24]。
+        heads_q (list, 可选): 各阶段的查询注意力头数量列表。默认为 [6, 12, 24, 48]。
+        window_sizes (list, 可选): 各阶段的窗口大小列表。默认为 [7, 7, 7, 7]。
+        drop_rate (float, 可选): 丢弃率。默认为 0.0。
+        attn_drop_rate (float, 可选): 注意力层的丢弃率。默认为 0.0。
+        drop_path_rate (float, 可选): 随机深度丢弃率。默认为 0.0。
+        strides (list, 可选): 各阶段的步长列表。默认为 [-1,-1,-1,-1]。
+        offset_range_factor (list, 可选): 各阶段的偏移范围因子列表。默认为 [1, 2, 3, 4]。
+        stage_spec (list, 可选): 各阶段的配置列表。默认为 [['L', 'D'], ['L', 'D'], ['L', 'D', 'L', 'D', 'L', 'D'], ['L', 'D']]。
+        groups (list, 可选): 各阶段的分组数量列表。默认为 [-1, -1, 3, 6]。
+        use_pes (list, 可选): 各阶段是否使用位置编码的列表。默认为 [False, False, False, False]。
+        dwc_pes (list, 可选): 各阶段是否使用深度可分离卷积位置编码的列表。默认为 [False, False, False, False]。
+        sr_ratios (list, 可选): 各阶段的下采样率列表。默认为 [8, 4, 2, 1]。
+        lower_lr_kvs (dict, 可选): 低学习率的键值对。默认为 {}。
+        fixed_pes (list, 可选): 各阶段是否使用固定位置编码的列表。默认为 [False, False, False, False]。
+        no_offs (list, 可选): 各阶段是否不使用偏移的列表。默认为 [False, False, False, False]。
+        ns_per_pts (list, 可选): 各阶段每个点的邻居数量列表。默认为 [4, 4, 4, 4]。
+        use_dwc_mlps (list, 可选): 各阶段是否使用深度可分离卷积 MLP 的列表。默认为 [False, False, False, False]。
+        use_conv_patches (bool, 可选): 是否使用卷积图像块。默认为 False。
+        ksizes (list, 可选): 各阶段的卷积核大小列表。默认为 [9, 7, 5, 3]。
+        ksize_qnas (list, 可选): 各阶段 FusedKQnA 模块的卷积核大小列表。默认为 [3, 3, 3, 3]。
+        nqs (list, 可选): 各阶段 FusedKQnA 模块的参数列表。默认为 [2, 2, 2, 2]。
+        qna_activation (str, 可选): FusedKQnA 模块的激活函数。默认为 'exp'。
+        nat_ksizes (list, 可选): 各阶段邻域注意力的卷积核大小列表。默认为 [3,3,3,3]。
+        layer_scale_values (list, 可选): 各阶段的层缩放值列表。默认为 [-1,-1,-1,-1]。
+        use_lpus (list, 可选): 各阶段是否使用局部感知单元的列表。默认为 [False, False, False, False]。
+        log_cpb (list, 可选): 各阶段是否使用对数相对位置偏差的列表。默认为 [False, False, False, False]。
+        """
         super().__init__()
 
         self.patch_proj = nn.Sequential(
@@ -244,7 +347,12 @@ class DAT(nn.Module):
         self.reset_parameters()
 
     def reset_parameters(self):
+        """
+        重置模型的参数。
 
+        该函数遍历模型的所有参数，对于类型为 nn.Linear 或 nn.Conv2d 的参数，使用 Kaiming 正态分布初始化权重，
+        并将偏置初始化为零。
+        """
         for m in self.parameters():
             if isinstance(m, (nn.Linear, nn.Conv2d)):
                 nn.init.kaiming_normal_(m.weight)
@@ -252,7 +360,19 @@ class DAT(nn.Module):
 
     @torch.no_grad()
     def load_pretrained(self, state_dict, lookup_22k):
+        """
+        加载预训练模型的权重。
 
+        该函数将预训练模型的权重加载到当前模型中，处理了形状不匹配的情况，如相对位置索引、q_grid、reference 等，
+        对于相对位置偏差表和 rpe_table 进行双三次插值，对于分类头根据 lookup_22k 进行处理。
+
+        参数:
+        state_dict (dict): 预训练模型的状态字典。
+        lookup_22k (list or tensor): 用于处理分类头的查找表。
+
+        返回:
+        torch.nn.modules.module._IncompatibleKeys: 加载状态字典时的不兼容键信息。
+        """
         new_state_dict = {}
         for state_key, state_value in state_dict.items():
             keys = state_key.split('.')
@@ -295,13 +415,37 @@ class DAT(nn.Module):
 
     @torch.jit.ignore
     def no_weight_decay(self):
+        """
+        返回不需要进行权重衰减的参数名称集合。
+
+        返回:
+        set: 不需要进行权重衰减的参数名称集合，当前仅包含 'absolute_pos_embed'。
+        """
         return {'absolute_pos_embed'}
 
     @torch.jit.ignore
     def no_weight_decay_keywords(self):
+        """
+        返回不需要进行权重衰减的参数关键字集合。
+
+        返回:
+        set: 不需要进行权重衰减的参数关键字集合，当前包含 'relative_position_bias_table' 和 'rpe_table'。
+        """
         return {'relative_position_bias_table', 'rpe_table'}
 
     def forward(self, x):
+        """
+        前向传播函数。
+
+        该函数定义了输入数据在模型中的前向传播过程，包括 patch 投影、多个 Transformer 阶段的处理、下采样、归一化、
+        平均池化和分类头处理。
+
+        参数:
+        x (torch.Tensor): 输入的图像数据，形状为 (batch_size, channels, height, width)。
+
+        返回:
+        tuple: 包含三个元素，第一个元素是模型的输出结果，后两个元素当前为 None。
+        """
         x = self.patch_proj(x)
         for i in range(4):
             x = self.stages[i](x)

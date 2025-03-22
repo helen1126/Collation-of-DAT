@@ -7,3 +7,4 @@ natten==0.14.6
 PyYAML
 yacs
 termcolor
+CUDA==11.3

@@ -39,6 +39,17 @@ class NeighborhoodAttention2D(nn.Module):
     """
     def __init__(self, dim, kernel_size, num_heads, attn_drop=0., proj_drop=0.,
                  dilation=None):
+        """
+        初始化 Neighborhood Attention 2D 模块。
+
+        参数:
+        dim (int): 输入特征的维度。
+        kernel_size (int): 邻域注意力的核大小，必须是大于 1 的奇数，且仅支持 3, 5, 7, 9, 11, 13。
+        num_heads (int): 注意力头的数量。
+        attn_drop (float, 可选): 注意力分数的丢弃率，默认为 0。
+        proj_drop (float, 可选): 投影层的丢弃率，默认为 0。
+        dilation (int or str, 可选): 膨胀率，必须大于等于 1，或者为字符串类型，默认为 None。
+        """
         super().__init__()
         self.fp16_enabled = False
         self.num_heads = num_heads
@@ -66,6 +77,16 @@ class NeighborhoodAttention2D(nn.Module):
         self.proj_drop = nn.Dropout(proj_drop)
 
     def forward(self, x):
+        """
+        前向传播函数。
+
+        参数:
+        x (torch.Tensor): 输入的特征张量，形状为 (B, C, H, W)。
+
+        返回:
+        tuple: 包含三个元素，第一个元素是经过邻域注意力处理后的特征张量，形状为 (B, C, H, W)；
+               后两个元素当前为 None。
+        """
         # assert x.dtype == torch.float16, f"AMP failed!, dtype={x.dtype}"
         x = x.permute(0, 2, 3, 1)
         B, Hp, Wp, C = x.shape

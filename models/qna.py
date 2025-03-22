@@ -17,7 +17,18 @@ import math
 class FusedKQnA(nn.Module):
     
     def __init__(self, n_q, n_channels, n_heads, ksize, stride, padding, qna_activation):
-        
+        """
+        初始化 FusedKQnA 模块。
+
+        参数:
+        n_q (int): 查询的数量。
+        n_channels (int): 输入通道的数量。
+        n_heads (int): 注意力头的数量。
+        ksize (int): 卷积核的大小。
+        stride (int): 卷积的步长。
+        padding (int): 卷积的填充大小。
+        qna_activation (str): 激活函数的类型，可选值为 'exp', 'sigmoid', 'linear'。
+        """
         super().__init__()
         self.n_q = n_q
         self.n_channels = n_channels
@@ -43,6 +54,16 @@ class FusedKQnA(nn.Module):
         trunc_normal_(self.rpb_table, std=0.02)
         
     def forward(self, x):
+        """
+        前向传播函数。
+
+        参数:
+        x (torch.Tensor): 输入张量，形状为 (B, C, H, W)。
+
+        返回:
+        tuple: 包含三个元素，第一个元素是经过注意力计算后的输出张量，形状为 (B, C, H', W')，
+               后两个元素当前为 None。
+        """
         # assert not torch.isnan(x).any(), 'NaN in x'
         B, C, H, W = x.size()
         x = einops.rearrange(x, 'b c h w -> b (h w) c')

@@ -18,7 +18,23 @@ class SlideAttention(nn.Module):
         self, dim, num_heads, ka, qkv_bias=True, qk_scale=None, attn_drop=0.,
         proj_drop=0.,dim_reduction=4, rpb=True, padding_mode='zeros',
         share_dwc_kernel=True, share_qkv=False):
+        """
+        初始化 SlideAttention 模块。
 
+        参数:
+        dim (int): 输入特征的维度。
+        num_heads (int): 注意力头的数量。
+        ka (int): 卷积核的大小。
+        qkv_bias (bool, 可选): 是否在 QKV 映射中使用偏置，默认为 True。
+        qk_scale (float, 可选): 查询键缩放因子，默认为 None，此时使用头维度的平方根的倒数。
+        attn_drop (float, 可选): 注意力分数的丢弃率，默认为 0。
+        proj_drop (float, 可选): 投影层的丢弃率，默认为 0。
+        dim_reduction (int, 可选): 维度缩减因子，默认为 4。
+        rpb (bool, 可选): 是否使用相对位置偏差，默认为 True。
+        padding_mode (str, 可选): 卷积填充模式，默认为 'zeros'。
+        share_dwc_kernel (bool, 可选): 是否共享深度可分离卷积核，默认为 True。
+        share_qkv (bool, 可选): 是否共享 QKV 映射，默认为 False。
+        """
         super().__init__()
         self.dim = dim
         self.num_heads = num_heads
@@ -54,6 +70,11 @@ class SlideAttention(nn.Module):
         self.softmax = nn.Softmax(dim=3)
 
     def reset_parameters(self):
+        """
+        重置深度可分离卷积层的参数。
+
+        为深度可分离卷积层的权重设置初始值，采用移位初始化的方式。
+        """
         # shift initialization for group convolution
         kernel = torch.zeros(self.ka*self.ka, self.ka, self.ka)
         for i in range(self.ka*self.ka):
@@ -62,7 +83,16 @@ class SlideAttention(nn.Module):
         self.dep_conv.weight = nn.Parameter(data=kernel, requires_grad=False)
 
     def forward(self, x):
-        
+        """
+        前向传播函数。
+
+        参数:
+        x (torch.Tensor): 输入的特征张量，形状为 (B, C, H, W)。
+
+        返回:
+        tuple: 包含三个元素，第一个元素是经过滑动注意力计算后的输出张量，形状为 (B, C, H, W)，
+               后两个元素当前为 None。
+        """
         x = einops.rearrange(x, 'b c h w -> b h w c')
         B, H, W, C = x.shape
         qkv = self.qkv(x)

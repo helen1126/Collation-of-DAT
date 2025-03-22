@@ -1,1 +1,16 @@
-
+name: DAT
+channel: 
+  - pytorch
+  - defaults
+dependencies:
+  - python = 3.9
+  - pytorch = 1.11
+  - torchvision = 0.12.0
+  - numpy = 1.20.3
+  pip:
+    - timm = 0.5.4
+    - einops = 0.6.1
+    - natten = 0.14.6
+    - PyYAML
+    - yacs
+    - termcolor
